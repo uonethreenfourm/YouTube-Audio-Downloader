@@ -35,6 +35,8 @@ Made by **ULENAM & SONAPSY-TEAM** | Optimized for Speed
 # Clone the repo
 git clone https://github.com/uonethreenfourm/YouTube-Audio-Downloader.git
 cd YouTube-Audio-Downloader
+# run
+python yt_app.py
 
 # Run the build script
 python build_portable.py
