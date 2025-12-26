@@ -1,5 +1,5 @@
 # YouTube Audio Auto-Downloader
-
+![Screenshot](images/screenshot.png)
 🎵 **Automatically download YouTube videos as MP3 with clipboard monitoring!**
 
 Made by **ULENAM & SONAPSY-TEAM** | Optimized for Speed
