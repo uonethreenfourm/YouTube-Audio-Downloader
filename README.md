@@ -33,7 +33,7 @@ Made by **ULENAM & SONAPSY-TEAM** | Optimized for Speed
 **Steps:**
 ```bash
 # Clone the repo
-git clone https://github.com/ULENAM/YouTube-Audio-Downloader.git
+git clone https://github.com/uonethreenfourm/YouTube-Audio-Downloader.git
 cd YouTube-Audio-Downloader
 
 # Run the build script
