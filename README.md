@@ -38,8 +38,7 @@ cd YouTube-Audio-Downloader
 # run
 python yt_app.py
 
-# Run the build script
-python build_portable.py
+
 ```
 
 Your EXE will be in the `dist/` folder.
