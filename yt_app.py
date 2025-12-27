@@ -57,7 +57,7 @@ class YTDownloader:
         self.yt_dlp_path = find_yt_dlp()
         
         # Header
-        tk.Label(root, text=">> YouTube Audio Auto-Downloader", 
+        tk.Label(root, text="YouTube Audio Auto-Downloader", 
                 font=("Arial", 14, "bold"), bg="#2b2b2b", fg="#00ff00").pack(pady=10)
         
         # Credits

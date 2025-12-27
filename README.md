@@ -1,5 +1,5 @@
 # YouTube Audio Auto-Downloader
-
+![Screenshot](/screenshot.png)
 🎵 **Automatically download YouTube videos as MP3 with clipboard monitoring!**
 
 Made by **ULENAM & SONAPSY-TEAM** | Optimized for Speed
@@ -33,8 +33,10 @@ Made by **ULENAM & SONAPSY-TEAM** | Optimized for Speed
 **Steps:**
 ```bash
 # Clone the repo
-git clone https://github.com/ULENAM/YouTube-Audio-Downloader.git
+git clone https://github.com/uonethreenfourm/YouTube-Audio-Downloader.git
 cd YouTube-Audio-Downloader
+# run
+python yt_app.py
 
 # Run the build script
 python build_portable.py
