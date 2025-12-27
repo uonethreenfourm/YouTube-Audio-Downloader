@@ -11,6 +11,8 @@ from queue import Queue
 import hashlib
 import sys
 import os
+from PIL import Image, ImageDraw
+import io
 
 OUTPUT_DIR = Path.home() / "Downloads" / "YouTube_Audio"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -22,16 +24,49 @@ YT_PATTERNS = [
     re.compile(r'(?:https?://)?(?:www\.)?youtube\.com/playlist\?list=([\w-]+)')
 ]
 
+def create_icon():
+    """Create YouTube downloader icon programmatically"""
+    img = Image.new('RGBA', (256, 256), color=(0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    
+    # Background circle - light blue
+    draw.ellipse([20, 20, 236, 236], fill=(173, 216, 230, 255), outline=(0, 0, 0, 255), width=8)
+    
+    # YouTube play button - red/pink
+    draw.rectangle([50, 60, 150, 130], fill=(239, 83, 80, 255), outline=(0, 0, 0, 255), width=4)
+    draw.polygon([(85, 80), (85, 110), (125, 95)], fill=(255, 255, 255, 255))
+    
+    # Download arrow - orange/yellow
+    arrow_x, arrow_y = 128, 150
+    # Vertical bar
+    draw.rectangle([arrow_x - 15, arrow_y, arrow_x + 15, arrow_y + 40], 
+                   fill=(255, 200, 87, 255), outline=(0, 0, 0, 255), width=3)
+    # Arrow head
+    draw.polygon([
+        [arrow_x - 30, arrow_y + 30],
+        [arrow_x + 30, arrow_y + 30],
+        [arrow_x, arrow_y + 70]
+    ], fill=(255, 200, 87, 255), outline=(0, 0, 0, 255))
+    
+    # Music note - green
+    note_x, note_y = 190, 100
+    draw.ellipse([note_x - 12, note_y + 20, note_x + 12, note_y + 45], 
+                 fill=(76, 175, 80, 255), outline=(0, 0, 0, 255), width=3)
+    draw.line([note_x + 12, note_y + 20, note_x + 12, note_y - 10], 
+              fill=(0, 0, 0, 255), width=4)
+    draw.line([note_x + 12, note_y - 10, note_x + 25, note_y], 
+              fill=(0, 0, 0, 255), width=4)
+    
+    return img
+
 def find_yt_dlp():
     """Find yt-dlp executable - check bundled first, then system"""
-    # Check if bundled with PyInstaller
     if getattr(sys, 'frozen', False):
         base_path = Path(sys.executable).parent
         bundled = base_path / "yt-dlp.exe"
         if bundled.exists():
             return str(bundled)
     
-    # Check system PATH
     try:
         result = subprocess.run(['where', 'yt-dlp'], capture_output=True, text=True)
         if result.returncode == 0:
@@ -45,8 +80,19 @@ class YTDownloader:
     def __init__(self, root):
         self.root = root
         self.root.title("YouTube Audio Auto-Downloader")
-        self.root.geometry("750x550")
-        self.root.configure(bg="#2b2b2b")
+        self.root.geometry("900x700")
+        self.root.configure(bg="#1a1a1a")
+        self.root.resizable(True, True)
+        
+        # Set window icon
+        try:
+            icon_img = create_icon()
+            icon_path = Path.home() / ".cache" / "yt_downloader_icon.png"
+            icon_path.parent.mkdir(exist_ok=True)
+            icon_img.save(icon_path)
+            self.root.iconphoto(False, tk.PhotoImage(file=str(icon_path)))
+        except Exception as e:
+            print(f"Icon error: {e}")
         
         self.running = False
         self.done_urls = set()
@@ -56,70 +102,88 @@ class YTDownloader:
         self.download_count = 0
         self.yt_dlp_path = find_yt_dlp()
         
-        # Header
-        tk.Label(root, text="YouTube Audio Auto-Downloader", 
-                font=("Arial", 14, "bold"), bg="#2b2b2b", fg="#00ff00").pack(pady=10)
+        # ===== HEADER SECTION =====
+        header_frame = tk.Frame(root, bg="#0d0d0d", height=70)
+        header_frame.pack(fill=tk.X, padx=0, pady=0)
+        header_frame.pack_propagate(False)
         
-        # Credits
-        tk.Label(root, text="Made by ULENAM & SONAPSY-TEAM | Portable Edition", 
-                font=("Arial", 8), bg="#2b2b2b", fg="#666666").pack()
+        tk.Label(header_frame, text="YOUTUBE AUDIO AUTO-DOWNLOADER", 
+                font=("Impact", 16, "bold"), bg="#0d0d0d", fg="#00ff00").pack(pady=8)
         
-        # Stats frame
-        stats_frame = tk.Frame(root, bg="#2b2b2b")
-        stats_frame.pack(pady=5)
+        tk.Label(header_frame, text="Made by ULENAM & SONAPSY-TEAM | Portable Edition", 
+                font=("Arial", 8), bg="#0d0d0d", fg="#00aa00").pack(pady=2)
         
-        # Status
+        # ===== STATS SECTION (Horizontal Bar) =====
+        stats_frame = tk.Frame(root, bg="#1f1f1f", height=50)
+        stats_frame.pack(fill=tk.X, padx=10, pady=8)
+        stats_frame.pack_propagate(False)
+        
         self.status = tk.Label(stats_frame, text="Status: Ready", 
-                              font=("Arial", 10, "bold"), bg="#2b2b2b", fg="#00ff00")
-        self.status.pack(side=tk.LEFT, padx=10)
+                              font=("Arial", 11, "bold"), bg="#1f1f1f", fg="#00ff00")
+        self.status.pack(side=tk.LEFT, padx=15, pady=10)
         
-        # Download counter
-        self.counter = tk.Label(stats_frame, text="Downloads: 0", 
-                               font=("Arial", 10), bg="#2b2b2b", fg="#00aaff")
-        self.counter.pack(side=tk.LEFT, padx=10)
+        tk.Label(stats_frame, text="•", font=("Arial", 14), bg="#1f1f1f", fg="#00aa00").pack(side=tk.LEFT, padx=5)
         
-        # Queue status
+        self.counter = tk.Label(stats_frame, text="Downloaded: 0", 
+                               font=("Arial", 11), bg="#1f1f1f", fg="#00aaff")
+        self.counter.pack(side=tk.LEFT, padx=15)
+        
+        tk.Label(stats_frame, text="•", font=("Arial", 14), bg="#1f1f1f", fg="#00aa00").pack(side=tk.LEFT, padx=5)
+        
         self.queue_label = tk.Label(stats_frame, text="Queue: 0", 
-                                    font=("Arial", 10), bg="#2b2b2b", fg="#ffaa00")
-        self.queue_label.pack(side=tk.LEFT, padx=10)
+                                    font=("Arial", 11), bg="#1f1f1f", fg="#ffaa00")
+        self.queue_label.pack(side=tk.LEFT, padx=15)
         
-        # Output
-        self.folder_label = tk.Label(root, text=f"Output: {self.output_dir}", 
-                               font=("Arial", 8), bg="#2b2b2b", fg="#888888", wraplength=650)
-        self.folder_label.pack()
+        # ===== OUTPUT PATH SECTION =====
+        output_frame = tk.Frame(root, bg="#1a1a1a")
+        output_frame.pack(fill=tk.X, padx=15, pady=8)
         
-        # Change path
-        tk.Button(root, text="Change Output Folder", command=self.change_path,
-                 bg="#0066cc", fg="white", font=("Arial", 9), padx=10, pady=3).pack(pady=5)
+        tk.Label(output_frame, text="📁 Output Folder:", 
+                font=("Arial", 9, "bold"), bg="#1a1a1a", fg="#00ff00").pack(anchor=tk.W)
         
-        # Log
-        log_frame = tk.Frame(root, bg="#2b2b2b")
-        log_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.folder_label = tk.Label(output_frame, text=f"{self.output_dir}", 
+                               font=("Courier", 8), bg="#1a1a1a", fg="#888888", 
+                               wraplength=750, justify=tk.LEFT)
+        self.folder_label.pack(anchor=tk.W, pady=3)
         
-        self.log_box = scrolledtext.ScrolledText(log_frame, height=18, width=85,
-                                                 bg="#1e1e1e", fg="#00ff00",
-                                                 font=("Courier", 9))
+        tk.Button(output_frame, text="Change Output Folder", command=self.change_path,
+                 bg="#0066cc", fg="white", font=("Arial", 8), padx=10, pady=2).pack(anchor=tk.W, pady=5)
+        
+        # ===== LOG SECTION =====
+        log_label = tk.Label(root, text="📺 Download Log", 
+                            font=("Arial", 10, "bold"), bg="#1a1a1a", fg="#00ff00")
+        log_label.pack(anchor=tk.W, padx=15, pady=(10, 3))
+        
+        log_frame = tk.Frame(root, bg="#1a1a1a")
+        log_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=(0, 10))
+        
+        self.log_box = scrolledtext.ScrolledText(log_frame, height=20, width=100,
+                                                 bg="#0d0d0d", fg="#00ff00",
+                                                 font=("Courier", 9),
+                                                 insertbackground="#00ff00",
+                                                 relief=tk.FLAT, bd=1)
         self.log_box.pack(fill=tk.BOTH, expand=True)
         self.log_box.config(state=tk.DISABLED)
         
-        # Buttons
-        btn_frame = tk.Frame(root, bg="#2b2b2b")
-        btn_frame.pack(pady=10)
+        # ===== BUTTON SECTION =====
+        btn_frame = tk.Frame(root, bg="#1a1a1a")
+        btn_frame.pack(pady=15)
         
-        self.start_btn = tk.Button(btn_frame, text=">> START", command=self.start,
-                                   bg="#00aa00", fg="white", font=("Arial", 11, "bold"),
-                                   padx=25, pady=6)
-        self.start_btn.pack(side=tk.LEFT, padx=5)
+        self.start_btn = tk.Button(btn_frame, text="▶  START MONITORING", command=self.start,
+                                   bg="#00aa00", fg="#000000", font=("Arial", 11, "bold"),
+                                   padx=30, pady=8, relief=tk.RAISED, bd=2, cursor="hand2")
+        self.start_btn.pack(side=tk.LEFT, padx=8)
         
-        self.stop_btn = tk.Button(btn_frame, text="STOP", command=self.stop,
+        self.stop_btn = tk.Button(btn_frame, text="⏹  STOP", command=self.stop,
                                   bg="#aa0000", fg="white", font=("Arial", 11, "bold"),
-                                  padx=25, pady=6, state=tk.DISABLED)
-        self.stop_btn.pack(side=tk.LEFT, padx=5)
+                                  padx=30, pady=8, relief=tk.RAISED, bd=2, state=tk.DISABLED, cursor="hand2")
+        self.stop_btn.pack(side=tk.LEFT, padx=8)
         
-        tk.Button(btn_frame, text="Clear Log", command=self.clear_log,
-                 bg="#555555", fg="white", font=("Arial", 9), padx=15, pady=6).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="🗑  Clear Log", command=self.clear_log,
+                 bg="#555555", fg="white", font=("Arial", 9), padx=15, pady=8, 
+                 relief=tk.RAISED, bd=2, cursor="hand2").pack(side=tk.LEFT, padx=8)
         
-        # Check yt-dlp
+        # ===== CHECK YT-DLP =====
         if not self.yt_dlp_path:
             self.log("[!] WARNING: yt-dlp not found!")
             self.log("[!] Install it with: pip install yt-dlp")
@@ -150,7 +214,7 @@ class YTDownloader:
                                         initialdir=str(self.output_dir))
         if folder:
             self.output_dir = Path(folder)
-            self.folder_label.config(text=f"Output: {self.output_dir}")
+            self.folder_label.config(text=f"{self.output_dir}")
             self.log(f"[+] Output folder changed: {self.output_dir}")
     
     def get_url(self, text):
@@ -206,7 +270,7 @@ class YTDownloader:
             
             if result.returncode == 0:
                 self.download_count += 1
-                self.counter.config(text=f"Downloads: {self.download_count}")
+                self.counter.config(text=f"Downloaded: {self.download_count}")
                 self.log(f"[+] Success! [{url_id}] Downloaded")
             else:
                 err = result.stderr.split('\n')[0][:70] if result.stderr else "Unknown error"
@@ -258,7 +322,7 @@ class YTDownloader:
             self.status.config(text="Status: [*] Monitoring...", fg="#00ff00")
             self.start_btn.config(state=tk.DISABLED)
             self.stop_btn.config(state=tk.NORMAL)
-            self.log("="*60)
+            self.log("="*80)
             
             threading.Thread(target=self.monitor, daemon=True).start()
             
