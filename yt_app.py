@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+import subprocess, sys
+
+packages = ["Pillow", "yt-dlp", "customtkinter", "pyperclip"]
+for package in packages:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 import subprocess
 import re
 import time
